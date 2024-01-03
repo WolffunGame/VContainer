@@ -250,6 +250,36 @@ namespace VContainer.Tests
         }
 
         [Test]
+        public void ResolveOpenGeneric()
+        {
+            var builder = new ContainerBuilder();
+
+            builder.Register<I2, NoDependencyServiceA>(Lifetime.Transient).AsSelf();
+            builder.Register(typeof(GenericsService<>), Lifetime.Transient)
+                .AsImplementedInterfaces()
+                .AsSelf();
+            builder.Register(typeof(GenericsService2<,>), Lifetime.Singleton)
+                .As(typeof(IGenericService<,>))
+                .AsSelf();
+            builder.Register<HasGenericDependency>(Lifetime.Singleton);
+
+            var container = builder.Build();
+            var obj1 = container.Resolve<IGenericService<NoDependencyServiceA>>();
+            var obj2 = container.Resolve<IGenericService<string, NoDependencyServiceA>>();
+            var obj3 = container.Resolve<IGenericService<string, NoDependencyServiceA>>();
+            var obj4 = container.Resolve<GenericsService2<string, NoDependencyServiceA>>();
+            var obj5 = container.Resolve<GenericsService<NoDependencyServiceA>>();
+            var obj6 = container.Resolve<HasGenericDependency>();
+
+            Assert.That(obj1, Is.TypeOf<GenericsService<NoDependencyServiceA>>());
+            Assert.That(obj2, Is.TypeOf<GenericsService2<string, NoDependencyServiceA>>());
+            Assert.AreSame(obj2, obj3);
+            Assert.AreSame(obj3, obj4);
+            Assert.AreNotSame(obj1, obj5);
+            Assert.That(obj6.Service, Is.TypeOf<GenericsService<NoDependencyServiceA>>());
+        }
+
+        [Test]
         public void RegisterInstance()
         {
             var builder = new ContainerBuilder();
@@ -431,6 +461,24 @@ namespace VContainer.Tests
         }
 
         [Test]
+        public void RegisterInvalidOpenGeneric()
+        {
+            var builder = new ContainerBuilder();
+            Assert.Throws<VContainerException>(() =>
+                builder.Register(typeof(GenericsService<int>), Lifetime.Transient)
+                    .As(typeof(IGenericService<>))
+            );
+            Assert.Throws<VContainerException>(() =>
+                builder.Register(typeof(GenericsService<>), Lifetime.Transient)
+                    .As(typeof(IGenericService<int>))
+            );
+            Assert.Throws<VContainerException>(() =>
+                builder.Register(typeof(GenericsService<>), Lifetime.Transient)
+                    .As(typeof(IGenericService<int>))
+            );
+        }
+
+        [Test]
         public void ErrorMessageIncludesDependency()
         {
             var builder = new ContainerBuilder();
@@ -517,6 +565,30 @@ namespace VContainer.Tests
 
             var ctorInjectable = new ServiceA(new NoDependencyServiceA());
             Assert.DoesNotThrow(() => container.Inject(ctorInjectable));
+        }
+
+        [Test]
+        public void OnContainerDisposeCallback()
+        {
+            NoDependencyServiceA resolvedJustBeforeDispose = null;
+            NoDependencyServiceB resolvedJustBeforeDispose2 = null;
+
+            var builder = new ContainerBuilder();
+
+            builder.Register<NoDependencyServiceA>(Lifetime.Scoped);
+            builder.Register<NoDependencyServiceB>(Lifetime.Scoped);
+            builder.RegisterDisposeCallback(resolver => resolvedJustBeforeDispose = resolver.Resolve<NoDependencyServiceA>());
+            builder.RegisterDisposeCallback(resolver => resolvedJustBeforeDispose2 = resolver.Resolve<NoDependencyServiceB>());
+
+            var container = builder.Build();
+
+            Assert.That(resolvedJustBeforeDispose, Is.Null);
+            Assert.That(resolvedJustBeforeDispose2, Is.Null);
+
+            container.Dispose();
+
+            Assert.That(resolvedJustBeforeDispose, Is.Not.Null);
+            Assert.That(resolvedJustBeforeDispose2, Is.Not.Null);
         }
     }
 }

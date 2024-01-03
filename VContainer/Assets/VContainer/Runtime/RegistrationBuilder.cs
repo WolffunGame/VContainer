@@ -6,11 +6,11 @@ namespace VContainer
 {
     public class RegistrationBuilder
     {
-        internal readonly Type ImplementationType;
-        internal readonly Lifetime Lifetime;
+        protected internal readonly Type ImplementationType;
+        protected internal readonly Lifetime Lifetime;
 
-        internal List<Type> InterfaceTypes;
-        internal List<IInjectParameter> Parameters;
+        protected internal List<Type> InterfaceTypes;
+        protected internal List<IInjectParameter> Parameters;
 
         public RegistrationBuilder(Type implementationType, Lifetime lifetime)
         {
@@ -47,7 +47,7 @@ namespace VContainer
             return this;
         }
 
-        public RegistrationBuilder AsImplementedInterfaces()
+        public virtual RegistrationBuilder AsImplementedInterfaces()
         {
             InterfaceTypes = InterfaceTypes ?? new List<Type>();
             InterfaceTypes.AddRange(ImplementationType.GetInterfaces());
@@ -103,7 +103,7 @@ namespace VContainer
             return WithParameter(typeof(TParam), value);
         }
 
-        void AddInterfaceType(Type interfaceType)
+        protected virtual void AddInterfaceType(Type interfaceType)
         {
             if (!interfaceType.IsAssignableFrom(ImplementationType))
             {
